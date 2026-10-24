@@ -1,14 +1,11 @@
 import { StyleSheet, View, Text, Button} from 'react-native';
 
-export default function Message({id, deleteMessage, content, userName, date, onDelete}) {
+export default function Message({content, date}) {
 
-  const dateReadable = new Date(date * 1000).toLocaleDateString('it-IT');
     return (
         <View style={message.boxMessage}>
-            <Text style={{fontWeight: 'bold'}}>{userName}</Text>
             <Text>{content}</Text>
-            <Text>{dateReadable}</Text>
-            <Button title='Elimina' onPress={() => deleteMessage(id)}> </Button>
+            <Text>{date}</Text>
         </View>
     );
 }

@@ -3,42 +3,48 @@ import { StyleSheet, View, TextInput, Button } from 'react-native';
 import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
-import axios from 'axios';
- 
-export default function Login() {
+import axios from 'axios'; 
+import { API_URL } from '../config';
+
+export default function Login({ onLogin }) {
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
 
     function handleLogin(){
         axios
-            .post('http://10.10.52.156:8888/api/login.php', {username: username, password: password})
+            .post(API_URL + '/login.php', {username: username, password: password})
             .then((response) => {
-                console.log(response.data);
+                // l'api risponde con token se il loginè giusto, con error se è sbagliato
+                if(response.data.token){
+                    onLogin(response.data.token);
+                } else{
+                    alert(response.data.error);
+                }
             })
             .catch((error) => {
-                console.error(error);
-            })
-            .finally(() => {
-                console.log("Request completed");
+                // qui arrivo solo se il server non risponde
+                alert('Impossibile contattare il server');
+                console.log(error);
             });
     }
 
     return (
+        // onChangeText passa il testo
+        // secureTextEntry si usa per nascondere la password
         <SafeAreaView style={styles.container}>
             <TextInput
                 style={styles.username}
                 placeholder="Username"
-                keyboardType="username"
                 value={username}
-                onChange={setUsername}
+                onChangeText={setUsername}
             />
             <TextInput
                 style={styles.username}
                 placeholder="Password"
-                keyboardType="password"
+                secureTextEntry
                 value={password}
-                onChange={setPassword}
+                onChangeText={setPassword}
             />
             <View style={styles.buttonView}>
                 <Button onPress={handleLogin} style={styles.button} title='Login'></Button>

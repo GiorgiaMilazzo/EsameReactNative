@@ -1,47 +1,23 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, TextInput } from 'react-native';
+import { StyleSheet, Text, View, Button, TextInput, Alert} from 'react-native';
 import InputAndButton from './ui/InputAndButton';
 import Message from './ui/Message';
 import { FlatList } from 'react-native';
 import { useEffect, useState } from 'react';
 import axios from 'axios'; // mi permette di chiamare delle api wrappate all'interno di promise
+import { API_URL } from './config';
 
 // export posso riusare il componente in diversi contesti
 // default possono non usare {} quando lo richiamo
 // in React Native utilizzo un'unica code base (diverse build) che permette di trsformare i componenti nel loro codie nativo
-export default function ListOfMessages() {
+export default function ListOfMessages({ token, onLogout }) {
   // useState ci sono delle info che permettono di triggerare la ui dell'app, ridisegna le parti dell'app impattate da quello stato
   // utilizzo una memoria dei componenti, che li rende reattivi ai cambiamenti
   
   // [getter,setter] 
   // getter per leggere lo stato
   // setter per sovrascrivere lo stato
-  const [messages, setMessages] = useState([
-  {
-    id : 1,
-    content : 'Messaggio1',
-    userName : 'Giorgia',
-    date : 1779978453
-  },
-  {
-    id : 2,
-    content : 'Messaggio2',
-    userName : 'Giorgia',
-    date : 1779719253
-  },
-  {
-    id : 3,
-    content : 'Messaggio3',
-    userName : 'Giorgia',
-    date : 1779460053
-  },
-  {
-    id : 4,
-    content : 'Messaggio4',
-    userName : 'Giorgia',
-    date : 1779287253
-  }
-]);
+  const [messages, setMessages] = useState([]);
   // messages legge lo stato 
   // useState restituisce un array, in cui la prima variabile è lo stato attuale e la seconda è il nuovo stato 
   // (che ci consente di ridisegnare l'array)
@@ -53,25 +29,58 @@ export default function ListOfMessages() {
 
   const [newContent, setNewContent] = useState('');
 
-    function createMessage(newContent) {
-      const newMessage = {
-        id: 5, 
-        content: newContent,
-        userName: 'Giorgia',
-        date: 1779287253
-      };
-      setMessages([...messages, newMessage]); // spread operator permette di espandere un array già esistente con uno nuovo elemento
-      setNewContent('');
+    function createMessage() {
+      axios.post(
+        API_URL + '/createPost.php', // url 
+        { content: newContent }, // body il testo del messaggio
+        { headers: { Authorization: 'Bearer ' + token}} // header con il token
+      )
+      .then((response) => {
+        if(response.data.success) {
+          // messaggio creato: svuoto l'input e ricarico la lista
+          setNewContent('');
+          download();
+        }else{
+          Alert.alert('Error', response.data.error);
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+      })
     }
 
 
 // chiamata all'api
 // non prendo più dati arcodati ma provenienti dall'api
 // usare useEffect
-  const download = async() => {
-    await axios.get(
-  "http://localhost:8888/api/messages.php");
-};
+  function download() {
+    axios
+      .get(API_URL + '/messages.php', {
+        headers: { Authorization: 'Bearer ' + token }
+      })
+      .then((response) => {
+        if(response.data.error) {
+          // token scaduto o non valido allora torno al login
+          onLogout();
+        }else{
+          setMessages(response.data);
+        }
+      })
+      .catch((error) => {
+        console.log(error.response.data);
+      })
+  }
+
+  // all'avvio scarico subito i messaggi
+  useEffect(() => {
+    download();
+  }, []);
+
+  // cancello il token salvato e torno al login
+  async function logout() {
+    await SecureStore.deleteItemAsync('token');
+    setToken(null);
+  }
 
 
 // es. di oggi finire l'app, login, mandare l'utente alla lista dei messaggi e poter cancellare i messaggi
@@ -89,30 +98,25 @@ export default function ListOfMessages() {
         <Text style={{color: 'pink', fontSize: 20, marginTop: 60, textAlign: 'center'}}>Social Network</Text>
         <Text style={{color: 'pink', fontSize: 10, textAlign: 'center'}}>Powered by Giorgia</Text>
 
+        <Button title='Logout' onPress={onLogout} />
+
         <InputAndButton 
           buttonLabel='Invia' 
           inputLabel='Scrivi un nuovo messaggio' 
-          onCreate={() => createMessage(newContent)}
+          onCreate={createMessage}
           value={newContent}
           onChangeText={setNewContent}
         ></InputAndButton>
 
-        
-        <Button title='Scarica i messaggi' onPress={download}> </Button>
-
 
         <FlatList 
           style={styles.container}
-          data={messages.reverse()} // array di dati da mostarre (inizializzato sopra)
-          keyExtractor={(item) => item.id} // identificatore univoco per ogni riga
+          data={messages} // array di dati da mostarre (inizializzato sopra)
+          keyExtractor={(item, index) => index.toString()} // usare la posizione nella lista, l'index
           renderItem={({item}) => ( // il componente da renderizzare per ogni elemento
             <Message
-              id={item.id} deleteMessage={handleDelete}
               content={item.content}
-              userName={item.userName}
-              date={item.date}
-              // viene passata la funzione al messaggio 
-              // onDelete funzione creata da me per passare la funzione da un componente all'altro
+              date={item.creation_date}
             />
           )}
         />
